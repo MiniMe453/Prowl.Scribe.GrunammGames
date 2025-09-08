@@ -115,6 +115,8 @@ namespace Prowl.Scribe
 
     public struct Line
     {
+        private static Stack<Line> _pool = new Stack<Line>();
+        
         public List<GlyphInstance> Glyphs;
         public float Width;
         public float Height;
@@ -130,6 +132,33 @@ namespace Prowl.Scribe
             Position = position;
             StartIndex = startIndex;
             EndIndex = startIndex;
+        }
+
+        public void SetData(Vector2 position, int startIndex)
+        {
+            if(Glyphs == null) Glyphs = new List<GlyphInstance>();
+            
+            Glyphs.Clear();
+            Width = 0;
+            Height = 0;
+            Position = position;
+            StartIndex = startIndex;
+            EndIndex = startIndex;
+        }
+
+        public static Line GetFromPool()
+        {
+            if (_pool.TryPop(out Line line))
+            {
+                return line;
+            }
+
+            return new Line();
+        }
+
+        public static void ReturnToPool(Line line)
+        {
+            _pool.Push(line);
         }
     }
 }

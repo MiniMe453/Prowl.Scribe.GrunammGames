@@ -42,7 +42,9 @@ namespace Prowl.Scribe
 
             Lines.Clear();
 
-            var line = new Line(new Vector2(0, currentY), 0);
+            var line = Line.GetFromPool();
+            line.SetData(new Vector2(0, currentY), 0);
+            // var line = new Line(new Vector2(0, currentY), 0);
 
             // Hoist Settings & constants
             var text = Text;

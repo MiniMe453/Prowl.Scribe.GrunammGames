@@ -508,6 +508,11 @@ namespace Prowl.Scribe
             {
                 renderer.DrawQuads(atlasTexture, vertices.ToArray(), indices.ToArray());
             }
+
+            foreach (Line line in layout.Lines)
+            {
+                Line.ReturnToPool(line);
+            }
         }
 
         #endregion
