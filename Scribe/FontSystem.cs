@@ -510,10 +510,7 @@ namespace Prowl.Scribe
                 renderer.DrawQuads(atlasTexture, CollectionsMarshal.AsSpan(vertices), CollectionsMarshal.AsSpan(indices));
             }
 
-            foreach (Line line in layout.Lines)
-            {
-                Line.ReturnToPool(line);
-            }
+            Line.ResetPool();
         }
 
         #endregion
