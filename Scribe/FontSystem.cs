@@ -1,5 +1,6 @@
 ﻿using Prowl.Scribe.Internal;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -503,10 +504,10 @@ namespace Prowl.Scribe
                     vertexCount += 4;
                 }
             }
-
+            
             if (vertices.Count > 0)
             {
-                renderer.DrawQuads(atlasTexture, vertices.ToArray(), indices.ToArray());
+                renderer.DrawQuads(atlasTexture, CollectionsMarshal.AsSpan(vertices), CollectionsMarshal.AsSpan(indices));
             }
 
             foreach (Line line in layout.Lines)
