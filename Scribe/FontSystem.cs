@@ -456,13 +456,18 @@ namespace Prowl.Scribe
             var layout = CreateLayout(text, settings);
             DrawLayout(layout, position, color);
         }
-
+        
+        private List<IFontRenderer.Vertex> _vertexList = new List<IFontRenderer.Vertex>();
+        private List<int> _indexList = new List<int>();
+        
         public void DrawLayout(TextLayout layout, Vector2 position, FontColor color)
         {
             if (layout.Lines.Count == 0) return;
 
-            var vertices = new List<IFontRenderer.Vertex>();
-            var indices = new List<int>();
+            _vertexList.Clear();
+            var vertices = _vertexList;
+            _indexList.Clear();
+            var indices = _indexList;
             int vertexCount = 0;
 
             foreach (var line in layout.Lines)
@@ -487,7 +492,14 @@ namespace Prowl.Scribe
                     vertices.Add(new IFontRenderer.Vertex(new Vector3(glyphX + glyphW, glyphY + glyphH, 0), color, new Vector2(glyph.U1, glyph.V1)));
 
                     // Create quad indices
-                    indices.AddRange(new[] { vertexCount, vertexCount + 1, vertexCount + 2, vertexCount + 1, vertexCount + 3, vertexCount + 2 });
+                    // indices.AddRange(new[] { vertexCount, vertexCount + 1, vertexCount + 2, vertexCount + 1, vertexCount + 3, vertexCount + 2 });
+                    indices.Add(vertexCount);
+                    indices.Add(vertexCount + 1);
+                    indices.Add(vertexCount + 2);
+                    indices.Add(vertexCount + 1);
+                    indices.Add(vertexCount + 3);
+                    indices.Add(vertexCount + 2);
+                    
                     vertexCount += 4;
                 }
             }
