@@ -102,7 +102,8 @@ namespace Prowl.Scribe
                     currentX = 0f;
                     currentY += lineHeight;
                     i++;
-                    line = new Line(new Vector2(0, currentY), i);
+                    line = Line.GetFromPool();
+                    line.SetData(new Vector2(0, currentY), i);
                     lastCodepointForKerning = 0;
                     hasTrailingNewline = true;
                     continue;
@@ -133,7 +134,8 @@ namespace Prowl.Scribe
                         FinalizeLine(ref line, currentY, lineHeight, s, currentX);
                         currentX = 0f;
                         currentY += lineHeight;
-                        line = new Line(new Vector2(0, currentY), i);
+                        line = Line.GetFromPool();
+                        line.SetData(new Vector2(0, currentY), i);
                     }
                     else
                     {
