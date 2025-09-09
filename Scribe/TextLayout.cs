@@ -39,8 +39,28 @@ namespace Prowl.Scribe
         }
         
         private Dictionary<object, float> _ascenderCache = new Dictionary<object, float>(8);
+        float GetAscender(FontFile font)
+        {
+            if (_ascenderCache.TryGetValue(font, out var a)) return a;
+            _currentFontSystem.GetScaledVMetrics(font, Settings.PixelSize, out var asc, out _, out _);
+            _ascenderCache[font] = asc;
+            return asc;
+        }
+
+        // Local to place a single glyph (no cross-line kerning)
+        void EmitGlyph(AtlasGlyph glyph, FontFile font, char c, float offsetX, float offsetY, float advanceBase, ref float x, List<GlyphInstance> outList, int charIndex, int lastCodepointForKerning)
+        {
+            float a = GetAscender(font);
+            var gi = new GlyphInstance(glyph, new Vector2(x + offsetX, offsetY + a), c, advanceBase, charIndex);
+            outList.Add(gi);
+            x += advanceBase;
+            lastCodepointForKerning = c; // kerning only continues within the current word/run
+        }
+
+        private FontSystem _currentFontSystem;
         private void LayoutText(FontSystem fontSystem)
         {
+            _currentFontSystem = fontSystem;
             float currentX = 0f;
             float currentY = 0f;
             int i = 0;
@@ -70,23 +90,6 @@ namespace Prowl.Scribe
             // Ascender cache per font object; we only need 'a' to place the glyph vertically
             var ascenderCache = _ascenderCache;
             ascenderCache.Clear();
-            float GetAscender(FontFile font)
-            {
-                if (ascenderCache.TryGetValue(font, out var a)) return a;
-                fontSystem.GetScaledVMetrics(font, pixelSize, out var asc, out _, out _);
-                ascenderCache[font] = asc;
-                return asc;
-            }
-
-            // Local to place a single glyph (no cross-line kerning)
-            void EmitGlyph(AtlasGlyph glyph, FontFile font, char c, float offsetX, float offsetY, float advanceBase, ref float x, List<GlyphInstance> outList, int charIndex)
-            {
-                float a = GetAscender(font);
-                var gi = new GlyphInstance(glyph, new Vector2(x + offsetX, offsetY + a), c, advanceBase, charIndex);
-                outList.Add(gi);
-                x += advanceBase;
-                lastCodepointForKerning = c; // kerning only continues within the current word/run
-            }
 
             while (i < len)
             {
@@ -215,7 +218,7 @@ namespace Prowl.Scribe
                     if (wordWidthNoLeadingKerning > maxWidth)
                     {
                         i = LayoutLongWordFast(fontSystem, ref line, ref currentX, ref currentY, lineHeight,
-                                               wordStart, wordEnd, tabWidth, spaceAdvance, wrapEnabled, maxWidth, GetAscender);
+                                               wordStart, wordEnd, tabWidth, spaceAdvance, wrapEnabled, maxWidth);
                         lastCodepointForKerning = 0;
                         continue;
                     }
@@ -250,7 +253,7 @@ namespace Prowl.Scribe
 
                     EmitGlyph(g, g.Font, c, g.Metrics.OffsetX, g.Metrics.OffsetY,
                               g.Metrics.AdvanceWidth + Settings.LetterSpacing,
-                              ref currentX, line.Glyphs, j);
+                              ref currentX, line.Glyphs, j, lastCodepointForKerning);
 
                     prevForKern = c;
                 }
@@ -277,8 +280,7 @@ namespace Prowl.Scribe
             float tabWidth,
             float spaceAdvance,
             bool wrapEnabled,
-            float maxWidth,
-            Func<FontFile, float> getAscender)
+            float maxWidth)
         {
             float pixelSize = Settings.PixelSize;
 
@@ -322,7 +324,7 @@ namespace Prowl.Scribe
                 }
 
                 // Emit glyph
-                float a = getAscender(g.Font);
+                float a = GetAscender(g.Font);
                 var gi = new GlyphInstance(g, new Vector2(currentX + g.Metrics.OffsetX, g.Metrics.OffsetY + a), c, adv, i);
                 line.Glyphs.Add(gi);
                 currentX += adv;
