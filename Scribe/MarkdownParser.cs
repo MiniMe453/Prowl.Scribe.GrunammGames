@@ -294,7 +294,8 @@ namespace Prowl.Scribe
             quote = default;
             if (!AtLineStart(text, pos)) return false;
             int i = pos;
-            var sb = new StringBuilder();
+            var sb = _builder;
+            sb.Clear();
             bool any = false;
             while (i < text.Length)
             {
@@ -370,7 +371,8 @@ namespace Prowl.Scribe
 
                 // Gather any following indented lines as the item's continuation
                 int j = NextLineStart(text, le);
-                var cont = new StringBuilder();
+                var cont = _builder;
+                cont.Clear();
                 while (j < text.Length)
                 {
                     int le2 = LineEnd(text, j);
@@ -599,7 +601,12 @@ namespace Prowl.Scribe
                     int end = j;
                     while (end > i && ".,:;!?".IndexOf(text[end - 1]) >= 0) end--;
                     string url = text.Substring(i, end - i);
-                    list.Add(Inline.Link(new List<Inline> { Inline.TextRun(url) }, url));
+                    
+                    var urlInline = GetInlineListFromPool();
+                    urlInline.Add(Inline.TextRun(url));
+                    var inlineLink = Inline.Link(urlInline, url);
+                    list.Add(inlineLink);
+                    
                     i = end;
                     continue;
                 }
@@ -654,7 +661,8 @@ namespace Prowl.Scribe
             {
                 if (t.Kind != InlineKind.Text) { output.Add(t); continue; }
                 string s = t.Text;
-                var sb = new StringBuilder();
+                var sb = _builder;
+                sb.Clear();
                 int i = 0;
                 while (i < s.Length)
                 {
@@ -725,12 +733,14 @@ namespace Prowl.Scribe
             return -1;
         }
 
+        private static StringBuilder _builder = new StringBuilder();
         private static List<Inline> CoalesceText(List<Inline> list)
         {
             if (list.Count == 0) return list;
-            var sb = (StringBuilder)null;
             // var res = new List<Inline>(list.Count);
             var res = GetInlineListFromPool(list.Count);
+            var sb = _builder;
+            sb.Clear();
             void Flush()
             {
                 if (sb != null && sb.Length > 0) { res.Add(Inline.TextRun(sb.ToString())); sb.Clear(); }
