@@ -215,6 +215,7 @@ namespace Prowl.Scribe
         // Entry point
         public static Document Parse(string input)
         {
+            ResetInlineListPool();
             var text = Normalize(input);
             var pos = 0;
             var blocks = new List<Block>();
@@ -522,7 +523,7 @@ namespace Prowl.Scribe
         private static List<Inline> ParseInlineBlock(string text)
         {
             text = text.Trim();
-            if (text.Length == 0) return new List<Inline>();
+            if (text.Length == 0) return GetInlineListFromPool();
             // Apply inline code/media first, then styling
             var tokens = TokenizeInline(text);
             return ApplyStyles(tokens);
@@ -536,7 +537,7 @@ namespace Prowl.Scribe
 
         private static List<Inline> TokenizeInline(string text)
         {
-            var list = new List<Inline>();
+            var list = GetInlineListFromPool();
             int i = 0;
             while (i < text.Length)
             {
@@ -623,11 +624,32 @@ namespace Prowl.Scribe
             return list;
         }
 
+        private static List<List<Inline>> _inlineListPool = new List<List<Inline>>();
+        private static int _inlineListIdx = 0;
+
+        private static List<Inline> GetInlineListFromPool(int count = 0)
+        {
+            if (_inlineListIdx >= _inlineListPool.Count)
+            {
+                _inlineListPool.Add(new List<Inline>(count));
+            }
+
+            var list = _inlineListPool[_inlineListIdx];
+            list.Clear();
+            _inlineListIdx++;
+            return list;
+        }
+
+        private static void ResetInlineListPool()
+        {
+            _inlineListIdx = 0;
+        }
+        
         private static List<Inline> ApplyStyles(List<Inline> tokens)
         {
             // Join Text runs first
             tokens = CoalesceText(tokens);
-            var output = new List<Inline>();
+            var output = GetInlineListFromPool();
             foreach (var t in tokens)
             {
                 if (t.Kind != InlineKind.Text) { output.Add(t); continue; }
@@ -706,8 +728,9 @@ namespace Prowl.Scribe
         private static List<Inline> CoalesceText(List<Inline> list)
         {
             if (list.Count == 0) return list;
-            var res = new List<Inline>(list.Count);
             var sb = (StringBuilder)null;
+            // var res = new List<Inline>(list.Count);
+            var res = GetInlineListFromPool(list.Count);
             void Flush()
             {
                 if (sb != null && sb.Length > 0) { res.Add(Inline.TextRun(sb.ToString())); sb.Clear(); }
