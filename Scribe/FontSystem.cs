@@ -386,6 +386,8 @@ namespace Prowl.Scribe
 
         #region Layout Methods
 
+        // private List<TextLayout> _layoutPool;
+        
         public TextLayout CreateLayout(string text, TextLayoutSettings settings)
         {
             if (string.IsNullOrEmpty(text))
@@ -402,6 +404,8 @@ namespace Prowl.Scribe
                 return direct;
             }
 
+            //TODO we should ensure that layout caching is working all the time
+            // because this would be a massive increase to the performance
             var key = GenerateLayoutCacheKey(text, settings);
 
             if (layoutCache.TryGetValue(key, out var cached))
@@ -509,8 +513,8 @@ namespace Prowl.Scribe
             {
                 renderer.DrawQuads(atlasTexture, CollectionsMarshal.AsSpan(vertices), CollectionsMarshal.AsSpan(indices));
             }
-
-            Line.ResetPool();
+            
+            layout.ResetLayout();
         }
 
         #endregion

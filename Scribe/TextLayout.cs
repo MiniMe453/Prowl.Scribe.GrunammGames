@@ -33,6 +33,12 @@ namespace Prowl.Scribe
             CalculateSize();
         }
 
+        internal void ResetLayout()
+        {
+            Line.ResetPool();
+        }
+        
+        private Dictionary<object, float> _ascenderCache = new Dictionary<object, float>(8);
         private void LayoutText(FontSystem fontSystem)
         {
             float currentX = 0f;
@@ -41,7 +47,6 @@ namespace Prowl.Scribe
             bool hasTrailingNewline = false;
 
             Lines.Clear();
-
             var line = Line.GetFromPool();
             line.SetData(new Vector2(0, currentY), 0);
             // var line = new Line(new Vector2(0, currentY), 0);
@@ -63,7 +68,8 @@ namespace Prowl.Scribe
             int lastCodepointForKerning = 0;
 
             // Ascender cache per font object; we only need 'a' to place the glyph vertically
-            var ascenderCache = new Dictionary<object, float>(8);
+            var ascenderCache = _ascenderCache;
+            ascenderCache.Clear();
             float GetAscender(FontFile font)
             {
                 if (ascenderCache.TryGetValue(font, out var a)) return a;
