@@ -7,6 +7,7 @@
 
 using Prowl.Scribe.Internal;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -198,6 +199,10 @@ namespace Prowl.Scribe
             return dl;
         }
 
+        
+        //TODO we can reset pools inside of this function as once the text is rendered, we need to clean everything up.
+        // This is safe to do so and we should do that to improve the performance of the tons of lists that
+        // get used here
         public static void Render(MarkdownDisplayList dl, FontSystem fontSystem, IFontRenderer renderer, Vector2 position, MarkdownLayoutSettings settings)
         {
             if (dl == null || dl.Ops.Count == 0) return;
@@ -465,10 +470,13 @@ namespace Prowl.Scribe
             return y + h + settings.ParagraphSpacing;
         }
 
+        private static List<IntRange> _linkRanges = new List<IntRange>();
+        
         private static float LayoutTable(Table t, float x, float y, MarkdownDisplayList dl, FontSystem fontSystem, MarkdownLayoutSettings settings, float? widthOverride = null)
         {
             int cols = t.Rows.Max(r => r.Cells.Count);
-            float[] minCol = new float[cols];
+            // float[] minCol = new float[cols];
+            float[] minCol = ArrayPool<float>.Shared.Rent(cols);
             float wAvail = widthOverride ?? settings.Width;
 
             // pass 1: min widths via NoWrap measure
@@ -494,7 +502,8 @@ namespace Prowl.Scribe
 
             // distribute to fit content width
             float totalMin = minCol.Sum();
-            float[] colW = new float[cols];
+            // float[] colW = new float[cols];
+            float[] colW = ArrayPool<float>.Shared.Rent(cols);
             if (totalMin <= wAvail)
             {
                 float extra = wAvail - totalMin;
@@ -506,15 +515,17 @@ namespace Prowl.Scribe
                 for (int c = 0; c < cols; c++)
                     colW[c] = wAvail * (minCol[c] / MathF.Max(totalMin, 1e-3f));
             }
-
+            ArrayPool<float>.Shared.Return(minCol);
             // Precompute column x positions for grid lines
-            float[] colX = new float[cols + 1];
+            // float[] colX = new float[cols + 1];
+            float[] colX = ArrayPool<float>.Shared.Rent(cols + 1);
             colX[0] = x;
             for (int c = 0; c < cols; c++) colX[c + 1] = colX[c] + colW[c];
 
             float tableTop = y;
             float rowY = y;
-            var perRowHeights = new float[t.Rows.Count];
+            // var perRowHeights = new float[t.Rows.Count];
+            var perRowHeights = ArrayPool<float>.Shared.Rent(t.Rows.Count);
 
             // Pass 2: layout rows (we'll emit text now and draw grid after we know full height)
             for (int r = 0; r < t.Rows.Count; r++)
@@ -539,7 +550,9 @@ namespace Prowl.Scribe
 
                     var tl = fontSystem.CreateLayout(text, tls);
 
-                    var linkRanges = new List<IntRange>();
+                    //TODO we can't do this because the link ranges are being used elsewhere. Dammit.
+                    var linkRanges = _linkRanges;
+                    linkRanges.Clear();
                     foreach (var ls in linkSpans) linkRanges.Add(ls.Range);
                     var op = new DrawText { Layout = tl, Pos = new Vector2(cx, rowY), Color = settings.ColorText, Decorations = decos, LinkRanges = linkRanges };
                     dl.Ops.Add(op);
@@ -577,7 +590,11 @@ namespace Prowl.Scribe
                     Color = settings.ColorRule
                 });
             }
-
+            
+            ArrayPool<float>.Shared.Return(colW);
+            ArrayPool<float>.Shared.Return(colX);
+            ArrayPool<float>.Shared.Return(perRowHeights);
+            
             return tableBottom + settings.ParagraphSpacing;
         }
 
