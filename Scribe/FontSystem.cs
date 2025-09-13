@@ -386,26 +386,25 @@ namespace Prowl.Scribe
 
         #region Layout Methods
 
-        // private List<TextLayout> _layoutPool;
+        private List<TextLayout> _layoutPool = new List<TextLayout>();
+        private int _currentLayoutIdx = 0;
         
         public TextLayout CreateLayout(string text, TextLayoutSettings settings)
         {
             if (string.IsNullOrEmpty(text))
             {
-                var empty = new TextLayout();
+                var empty = GetTextLayoutFromPool();
                 empty.UpdateLayout(text, settings, this);
                 return empty;
             }
 
             if (!CacheLayouts)
             {
-                var direct = new TextLayout();
+                var direct = GetTextLayoutFromPool();
                 direct.UpdateLayout(text, settings, this);
                 return direct;
             }
-
-            //TODO we should ensure that layout caching is working all the time
-            // because this would be a massive increase to the performance
+            
             var key = GenerateLayoutCacheKey(text, settings);
 
             if (layoutCache.TryGetValue(key, out var cached))
@@ -418,6 +417,24 @@ namespace Prowl.Scribe
             return layout;
         }
 
+        private TextLayout GetTextLayoutFromPool()
+        {
+            TextLayout layout;
+            if (_currentLayoutIdx >= _layoutPool.Count)
+            {
+                layout = new TextLayout();
+                _layoutPool.Add(layout);
+            }
+            else
+            {
+                layout = _layoutPool[_currentLayoutIdx];
+            }
+            
+            layout.ResetLayout();
+            _currentLayoutIdx++;
+            return layout;
+        }
+        
         LayoutCacheKey GenerateLayoutCacheKey(string text, TextLayoutSettings s)
             => new LayoutCacheKey(text, s.PixelSize, s.LetterSpacing, s.WordSpacing, s.LineHeight,
                    s.TabSize, s.WrapMode, s.Alignment, s.MaxWidth, s.Font.GetHashCode());
@@ -515,6 +532,7 @@ namespace Prowl.Scribe
             }
             
             layout.ResetLayout();
+            _currentLayoutIdx--;
         }
 
         #endregion

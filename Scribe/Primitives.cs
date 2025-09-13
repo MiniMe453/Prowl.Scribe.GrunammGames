@@ -94,7 +94,6 @@ namespace Prowl.Scribe
             MaxWidth = 0
         };
     }
-
     public struct GlyphInstance
     {
         public AtlasGlyph Glyph;
@@ -102,6 +101,10 @@ namespace Prowl.Scribe
         public char Character;
         public float AdvanceWidth;
         public int CharIndex;
+
+        // Static pool
+        private static List<GlyphInstance> pool = new List<GlyphInstance>();
+        private static int indexCounter = 0;
 
         public GlyphInstance(AtlasGlyph glyph, Vector2 position, char character, float advanceWidth, int charIndex)
         {
@@ -111,7 +114,38 @@ namespace Prowl.Scribe
             AdvanceWidth = advanceWidth;
             CharIndex = charIndex;
         }
+
+        // Get a new instance from the pool or create a new one
+        public static GlyphInstance Get(AtlasGlyph glyph, Vector2 position, char character, float advanceWidth, int charIndex)
+        {
+            if (indexCounter < pool.Count)
+            {
+                // Reuse an existing instance
+                var instance = pool[indexCounter++];
+                instance.Glyph = glyph;
+                instance.Position = position;
+                instance.Character = character;
+                instance.AdvanceWidth = advanceWidth;
+                instance.CharIndex = charIndex;
+                return instance;
+            }
+            else
+            {
+                // Create a new instance and add it to the pool
+                var instance = new GlyphInstance(glyph, position, character, advanceWidth, charIndex);
+                pool.Add(instance);
+                indexCounter++;
+                return instance;
+            }
+        }
+
+        // Reset the pool counter (does not clear the pool, just allows reuse)
+        public static void Free()
+        {
+            indexCounter = 0;
+        }
     }
+
 
     public struct Line
     {
@@ -162,6 +196,7 @@ namespace Prowl.Scribe
         public static void ResetPool()
         {
             _poolIndex = 0;
+            GlyphInstance.Free();
         }
     }
 }

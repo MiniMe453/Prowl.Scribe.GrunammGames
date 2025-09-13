@@ -51,7 +51,8 @@ namespace Prowl.Scribe
         void EmitGlyph(AtlasGlyph glyph, FontFile font, char c, float offsetX, float offsetY, float advanceBase, ref float x, List<GlyphInstance> outList, int charIndex, int lastCodepointForKerning)
         {
             float a = GetAscender(font);
-            var gi = new GlyphInstance(glyph, new Vector2(x + offsetX, offsetY + a), c, advanceBase, charIndex);
+            // var gi = new GlyphInstance(glyph, new Vector2(x + offsetX, offsetY + a), c, advanceBase, charIndex);
+            var gi = GlyphInstance.Get(glyph, new Vector2(x + offsetX, offsetY + a), c, advanceBase, charIndex);
             outList.Add(gi);
             x += advanceBase;
             lastCodepointForKerning = c; // kerning only continues within the current word/run
@@ -212,7 +213,9 @@ namespace Prowl.Scribe
                         FinalizeLine(ref line, currentY, lineHeight, wordStart, currentX);
                         currentX = 0f;
                         currentY += lineHeight;
-                        line = new Line(new Vector2(0, currentY), wordStart);
+                        // line = new Line(new Vector2(0, currentY), wordStart);
+                        line = Line.GetFromPool();
+                        line.SetData(new Vector2(0, currentY), wordStart);
                         lastCodepointForKerning = 0; // new line: no leading kerning
                     }
 
@@ -312,7 +315,9 @@ namespace Prowl.Scribe
                     FinalizeLine(ref line, currentY, lineHeight, i, currentX);
                     currentX = 0f;
                     currentY += lineHeight;
-                    line = new Line(new Vector2(0, currentY), i);
+                    // line = new Line(new Vector2(0, currentY), i);
+                    line = Line.GetFromPool();
+                    line.SetData(new Vector2(0, currentY), i);
                     lastKernCode = 0; // break kerning across lines
                 }
                 else if (wrapEnabled && line.Glyphs.Count == 0 && currentX + k + adv > maxWidth)
@@ -327,7 +332,9 @@ namespace Prowl.Scribe
 
                 // Emit glyph
                 float a = GetAscender(g.Font);
-                var gi = new GlyphInstance(g, new Vector2(currentX + g.Metrics.OffsetX, g.Metrics.OffsetY + a), c, adv, i);
+                // var gi = new GlyphInstance(g, new Vector2(currentX + g.Metrics.OffsetX, g.Metrics.OffsetY + a), c, adv, i);
+                var gi = GlyphInstance.Get(g, new Vector2(currentX + g.Metrics.OffsetX, g.Metrics.OffsetY + a), c, adv,
+                    i);
                 line.Glyphs.Add(gi);
                 currentX += adv;
                 lastKernCode = c;
