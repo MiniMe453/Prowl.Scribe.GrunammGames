@@ -208,8 +208,12 @@ namespace Prowl.Scribe
             if (dl == null || dl.Ops.Count == 0) return;
 
             // Batch shape quads into a single DrawQuads call using the font atlas texture.
-            var verts = new List<IFontRenderer.Vertex>(128);
-            var idx = new List<int>(256);
+            // var verts = new List<IFontRenderer.Vertex>(128);
+            // var idx = new List<int>(256);
+            var verts = ArrayPool<IFontRenderer.Vertex>.Shared.Rent(128);
+            int addedVertCount = 0;
+            var idx = ArrayPool<int>.Shared.Rent(256);
+            int addedIdxCount = 0;
             int vbase = 0;
 
             foreach (var op in dl.Ops)
@@ -217,15 +221,17 @@ namespace Prowl.Scribe
                 if (op is DrawQuad q)
                 {
                     var offsetRect = new RectangleF(q.Rect.X + position.X, q.Rect.Y + position.Y, q.Rect.Width, q.Rect.Height);
-                    AddQuad(ref verts, ref idx, ref vbase, offsetRect, q.Color);
+                    AddQuad(ref verts, ref idx, ref vbase, ref addedVertCount, ref addedIdxCount, offsetRect, q.Color);
                 }
             }
 
-            if (verts.Count > 0)
+            if (addedVertCount > 0)
             {
-                renderer.DrawQuads(fontSystem.Texture, verts.ToArray(), idx.ToArray());
+                renderer.DrawQuads(fontSystem.Texture, verts, idx);
             }
-
+            
+            ArrayPool<IFontRenderer.Vertex>.Shared.Return(verts);
+            ArrayPool<int>.Shared.Return(idx);
             // Draw text and images in submission order
             foreach (var op in dl.Ops)
             {
@@ -785,8 +791,12 @@ namespace Prowl.Scribe
             var layout = t.Layout;
             if (layout.Lines == null || layout.Lines.Count == 0) return;
 
-            var verts = new List<IFontRenderer.Vertex>(128);
-            var idx = new List<int>(256);
+            // var verts = new List<IFontRenderer.Vertex>(128);
+            // var idx = new List<int>(256);
+            var verts = ArrayPool<IFontRenderer.Vertex>.Shared.Rent(128);
+            int addedVertCount = 0;
+            var idx = ArrayPool<int>.Shared.Rent(256);
+            int addedIdxCount = 0;
             int vbase = 0;
 
             // We will map each line's glyphs to absolute character indices in layout.Text.
@@ -877,12 +887,15 @@ namespace Prowl.Scribe
                     }
 
                     // Make sure we draw at least a 1px wide segment
-                    AddQuad(ref verts, ref idx, ref vbase, new RectangleF(x0, y, MathF.Max(1, x1 - x0), thickness), color);
+                    AddQuad(ref verts, ref idx, ref vbase, ref addedVertCount, ref addedIdxCount, new RectangleF(x0, y, MathF.Max(1, x1 - x0), thickness), color);
                 }
             }
 
-            if (verts.Count > 0)
-                renderer.DrawQuads(fontSystem.Texture, verts.ToArray(), idx.ToArray());
+            if (addedVertCount > 0)
+                renderer.DrawQuads(fontSystem.Texture, verts, idx);
+            
+            ArrayPool<IFontRenderer.Vertex>.Shared.Return(verts);
+            ArrayPool<int>.Shared.Return(idx);
         }
 
         private static void AddLinkHitBoxes(MarkdownDisplayList dl, DrawText t, List<LinkSpan> links)
@@ -934,16 +947,24 @@ namespace Prowl.Scribe
 
         #region Quad helpers
 
-        private static void AddQuad(ref List<IFontRenderer.Vertex> verts, ref List<int> idx, ref int vbase, RectangleF r, FontColor color)
+        private static void AddQuad(ref IFontRenderer.Vertex[] verts, ref int[] idx, ref int vbase, ref int addedVertCount, ref int addedIdxCount, RectangleF r, FontColor color)
         {
             // UV(0,0) white texel as requested
             var uv = new Vector2(0, 0);
-            verts.Add(new IFontRenderer.Vertex(new Vector3(r.X, r.Y, 0), color, uv));
-            verts.Add(new IFontRenderer.Vertex(new Vector3(r.X + r.Width, r.Y, 0), color, uv));
-            verts.Add(new IFontRenderer.Vertex(new Vector3(r.X, r.Y + r.Height, 0), color, uv));
-            verts.Add(new IFontRenderer.Vertex(new Vector3(r.X + r.Width, r.Y + r.Height, 0), color, uv));
-            idx.Add(vbase + 0); idx.Add(vbase + 1); idx.Add(vbase + 2);
-            idx.Add(vbase + 1); idx.Add(vbase + 3); idx.Add(vbase + 2);
+            verts[addedVertCount] = new IFontRenderer.Vertex(new Vector3(r.X, r.Y, 0), color, uv);
+            verts[addedVertCount + 1] = new IFontRenderer.Vertex(new Vector3(r.X + r.Width, r.Y, 0), color, uv);
+            verts[addedVertCount + 2] = new IFontRenderer.Vertex(new Vector3(r.X, r.Y + r.Height, 0), color, uv);
+            verts[addedVertCount + 3] = new IFontRenderer.Vertex(new Vector3(r.X + r.Width, r.Y + r.Height, 0), color, uv);
+            addedVertCount += 4;
+            
+            idx[addedIdxCount] = (vbase + 0); 
+            idx[addedIdxCount + 1] = (vbase + 1); 
+            idx[addedIdxCount + 2] = (vbase + 2);
+            idx[addedIdxCount + 3] = (vbase + 1); 
+            idx[addedIdxCount + 4] = (vbase + 3); 
+            idx[addedIdxCount + 5] = (vbase + 2);
+            addedIdxCount += 6;
+            
             vbase += 4;
         }
 
